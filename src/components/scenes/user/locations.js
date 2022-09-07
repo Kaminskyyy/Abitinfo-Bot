@@ -1,11 +1,17 @@
-const { Composer } = require('telegraf');
-const { Location } = require('../db/models/location');
-const { NAV_PLACES, NAV_NEXT_PAGE_SIGN, NAV_PREV_PAGE_SIGN } = require('../store/triggerStrings');
-const { createLocationsKeyboard } = require('../utils/keyboards');
+const { Composer, Scenes } = require('telegraf');
+const { Location } = require('../../../db/models/location');
+const {
+	NAV_NEXT_PAGE_SIGN,
+	NAV_PREV_PAGE_SIGN,
+	LOCATIONS_SCENE,
+	MAIN_MENU,
+	MAIN_MENU_SCENE,
+} = require('../../store/strings');
+const { createLocationsKeyboard } = require('../../lib/keyboards/dynamic-keyboards');
 
-const bot = new Composer();
+const locationsScene = new Scenes.BaseScene(LOCATIONS_SCENE);
 
-bot.hears(NAV_PLACES, async (ctx) => {
+locationsScene.enter(async (ctx) => {
 	try {
 		let locations = await Location.find({});
 		location = locations.map((location) => location.name);
@@ -15,7 +21,7 @@ bot.hears(NAV_PLACES, async (ctx) => {
 		if (locations.length > 5) {
 			keyboard = createLocationsKeyboard(locations.slice(0, 5), null, 2);
 		} else {
-			keyboard = createLocationsKeyboard(locationsslice(0, 5), null, null);
+			keyboard = createLocationsKeyboard(locations.slice(0, 5), null, null);
 		}
 
 		return await ctx.reply('places\nPage 1', keyboard);
@@ -25,7 +31,7 @@ bot.hears(NAV_PLACES, async (ctx) => {
 	}
 });
 
-bot.hears(new RegExp(`${NAV_PREV_PAGE_SIGN}|${NAV_NEXT_PAGE_SIGN}`), async (ctx) => {
+locationsScene.hears(new RegExp(`${NAV_PREV_PAGE_SIGN}|${NAV_NEXT_PAGE_SIGN}`), async (ctx) => {
 	try {
 		let page = null;
 		if (ctx.message.text.includes(NAV_PREV_PAGE_SIGN)) {
@@ -56,7 +62,7 @@ bot.hears(new RegExp(`${NAV_PREV_PAGE_SIGN}|${NAV_NEXT_PAGE_SIGN}`), async (ctx)
 	}
 });
 
-bot.hears(/🌎 /, async (ctx) => {
+locationsScene.hears(/🌎 /, async (ctx) => {
 	try {
 		const name = ctx.message.text.replace('🌎 ', '');
 
@@ -70,4 +76,12 @@ bot.hears(/🌎 /, async (ctx) => {
 	}
 });
 
-module.exports = bot;
+locationsScene.hears(MAIN_MENU, (ctx) => {
+	ctx.scene.enter(MAIN_MENU_SCENE);
+});
+
+locationsScene.on('message', (ctx, next) => {
+	if (ctx.update.message.text.includes('/start')) next();
+});
+
+module.exports = { locationsScene };

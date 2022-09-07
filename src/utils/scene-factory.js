@@ -15,11 +15,16 @@ function composeWizardScene(...stepFuncs) {
 		//
 		return new Scenes.WizardScene(
 			sceneName,
-			...stepFuncs.map((func) => {
-				return async (ctx, next) => {
-					//if (!ctx.message && !ctx.callbackQuery) return undefined;
-					return func(ctx, (isFail) => done(ctx, nextScene, isFail), next);
-				};
+			...stepFuncs.map((handler) => {
+				if (typeof handler !== 'function') {
+					handler.done = (ctx, isOk) => done(ctx, nextScene, isOk);
+					return handler;
+				} else {
+					return async (ctx, next) => {
+						//if (!ctx.message && !ctx.callbackQuery) return undefined;
+						return handler(ctx, (isOk) => done(ctx, nextScene, isOk), next);
+					};
+				}
 			})
 		);
 	};
